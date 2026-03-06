@@ -1,0 +1,36 @@
+name: Deploy to Repo1 on README change
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "README.md"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo2
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Repo1
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+
+          # Klonujemy Repo1 (zmień URL na swój!)
+          git clone https://${{ secrets.REPO_1_TOKEN }}@github.com/rdkocinski/Repo1.git target_repo
+
+          # Czyścimy target_repo (oprócz folderu .git), aby mieć pewność 1:1 z dev
+          find target_repo -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Kopiujemy wszystko z Repo2 (oprócz .git i .github) do target_repo
+          rsync -av --exclude '.git' --exclude '.github' ./ target_repo/
+
+          cd target_repo
+          git add .
+          git commit -m "Auto-deploy from Repo2: $(date)" || echo "No changes"
+          git push origin master
